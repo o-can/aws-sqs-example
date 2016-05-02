@@ -48,6 +48,7 @@ public class Main {
                 }
             }
         }
+        sqs.purgeQueue(new PurgeQueueRequest().withQueueUrl(myQueueUrl));
         sqs.deleteQueue(myQueue);
         ListQueuesResult listQueuesResult = sqs.listQueues(myQueue);
         if (listQueuesResult != null) {
