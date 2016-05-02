@@ -9,6 +9,7 @@ import com.amazonaws.services.sqs.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,7 +27,10 @@ public class Main {
     public static void main(String[] args) throws InterruptedException {
         AmazonSQS sqs = new AmazonSQSClient(new DefaultAWSCredentialsProviderChain());
         sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));
-        CreateQueueRequest createQueueRequest = new CreateQueueRequest(myQueue);
+        Map<String, String> queueAttributes = new HashMap<>();
+        queueAttributes.put("VisibilityTimeout", "120");
+        LOGGER.info("Creating Queue "+myQueue+" with VisibilityTimeout of 120s.");
+        CreateQueueRequest createQueueRequest = new CreateQueueRequest(myQueue).withAttributes(queueAttributes);
         String myQueueUrl;
         try {
             myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
