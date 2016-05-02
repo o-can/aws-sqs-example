@@ -1,5 +1,8 @@
 package de.ozzc.sqs.example;
 
+import com.amazon.sqs.javamessaging.AmazonSQSMessagingClientWrapper;
+import com.amazon.sqs.javamessaging.SQSConnection;
+import com.amazon.sqs.javamessaging.SQSConnectionFactory;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
@@ -9,6 +12,7 @@ import com.amazonaws.services.sqs.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.jms.JMSException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +33,7 @@ public class Main {
         sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));
         Map<String, String> queueAttributes = new HashMap<>();
         queueAttributes.put("VisibilityTimeout", "120");
-        LOGGER.info("Creating Queue "+myQueue+" with VisibilityTimeout of 120s.");
+        LOGGER.info("Creating Queue " + myQueue + " with VisibilityTimeout of 120s.");
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(myQueue).withAttributes(queueAttributes);
         String myQueueUrl;
         try {
@@ -43,13 +47,11 @@ public class Main {
 
         sqs.sendMessage(new SendMessageRequest(myQueue, "Hello World!"));
         GetQueueAttributesResult getQueueAttributesResult = sqs.getQueueAttributes(new GetQueueAttributesRequest(myQueueUrl));
-        if(getQueueAttributesResult != null)
-        {
+        if (getQueueAttributesResult != null) {
             Map<String, String> attributes = getQueueAttributesResult.getAttributes();
-            if(attributes != null && !attributes.isEmpty())
-            {
+            if (attributes != null && !attributes.isEmpty()) {
                 Set<String> keys = attributes.keySet();
-                LOGGER.info("Queue Attributes for "+myQueueUrl);
+                LOGGER.info("Queue Attributes for " + myQueueUrl);
             }
         }
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest().withQueueUrl(myQueueUrl).withMaxNumberOfMessages(1);
@@ -77,6 +79,26 @@ public class Main {
                 for (String queueUrl : queueUrls)
                     LOGGER.info("Existing Queue that was not deleted : " + queueUrl);
             }
+        }
+
+        // JMS
+        SQSConnectionFactory connectionFactory =
+                SQSConnectionFactory.builder()
+                        .withRegion(Region.getRegion(Regions.EU_CENTRAL_1))
+                        .withAWSCredentialsProvider(new DefaultAWSCredentialsProviderChain())
+                        .build();
+
+        try {
+            SQSConnection connection = connectionFactory.createConnection();
+            AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
+            if (!client.queueExists("TopicQueue")) {
+                CreateQueueResult createQueueResult = client.createQueue("TopicQueue");
+                LOGGER.info("TopicQueue created");
+                AmazonSQS amznClient = connection.getAmazonSQSClient();
+                amznClient.deleteQueue(new DeleteQueueRequest("TopicQueue"));
+            }
+        } catch (JMSException e) {
+            LOGGER.error(e.getMessage(), e);
         }
     }
 }
