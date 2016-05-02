@@ -7,7 +7,10 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.AmazonSQSAsync;
+import com.amazonaws.services.sqs.AmazonSQSAsyncClient;
 import com.amazonaws.services.sqs.AmazonSQSClient;
+import com.amazonaws.services.sqs.buffered.AmazonSQSBufferedAsyncClient;
 import com.amazonaws.services.sqs.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +41,8 @@ public class Main {
                         .build();
         SQSConnection connection = connectionFactory.createConnection();
 
-        AmazonSQS sqs = connection.getAmazonSQSClient();
+        AmazonSQSAsync sqsAsync = new AmazonSQSAsyncClient(new DefaultAWSCredentialsProviderChain());
+        AmazonSQSBufferedAsyncClient sqs = new AmazonSQSBufferedAsyncClient(sqsAsync);
         sqs.setRegion(REGION);
         Map<String, String> queueAttributes = new HashMap<>();
         queueAttributes.put("VisibilityTimeout", "120");
