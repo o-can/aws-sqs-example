@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 /**
  * @author Ozkan Can
@@ -26,15 +25,25 @@ import java.util.function.Function;
 public class Main {
 
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
-    public static final String myQueue = "MyQueue";
+    public static final String QUEUE_NAME = "MyQueue";
+    public static final Region REGION = Region.getRegion(Regions.EU_CENTRAL_1);
 
-    public static void main(String[] args) throws InterruptedException {
-        AmazonSQS sqs = new AmazonSQSClient(new DefaultAWSCredentialsProviderChain());
-        sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));
+    public static void main(String[] args) throws InterruptedException, JMSException {
+
+        // JMS
+        SQSConnectionFactory connectionFactory =
+                SQSConnectionFactory.builder()
+                        .withRegion(REGION)
+                        .withAWSCredentialsProvider(new DefaultAWSCredentialsProviderChain())
+                        .build();
+        SQSConnection connection = connectionFactory.createConnection();
+
+        AmazonSQS sqs = connection.getAmazonSQSClient();
+        sqs.setRegion(REGION);
         Map<String, String> queueAttributes = new HashMap<>();
         queueAttributes.put("VisibilityTimeout", "120");
-        LOGGER.info("Creating Queue " + myQueue + " with VisibilityTimeout of 120s.");
-        CreateQueueRequest createQueueRequest = new CreateQueueRequest(myQueue).withAttributes(queueAttributes);
+        LOGGER.info("Creating Queue " + QUEUE_NAME + " with VisibilityTimeout of 120s.");
+        CreateQueueRequest createQueueRequest = new CreateQueueRequest(QUEUE_NAME).withAttributes(queueAttributes);
         String myQueueUrl;
         try {
             myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
@@ -45,7 +54,7 @@ public class Main {
         }
         LOGGER.info(myQueueUrl);
 
-        sqs.sendMessage(new SendMessageRequest(myQueue, "Hello World!"));
+        sqs.sendMessage(new SendMessageRequest(QUEUE_NAME, "Hello World!"));
         GetQueueAttributesResult getQueueAttributesResult = sqs.getQueueAttributes(new GetQueueAttributesRequest(myQueueUrl));
         if (getQueueAttributesResult != null) {
             Map<String, String> attributes = getQueueAttributesResult.getAttributes();
@@ -71,8 +80,8 @@ public class Main {
             }
         }
         sqs.purgeQueue(new PurgeQueueRequest().withQueueUrl(myQueueUrl));
-        sqs.deleteQueue(myQueue);
-        ListQueuesResult listQueuesResult = sqs.listQueues(myQueue);
+        sqs.deleteQueue(QUEUE_NAME);
+        ListQueuesResult listQueuesResult = sqs.listQueues(QUEUE_NAME);
         if (listQueuesResult != null) {
             if (listQueuesResult.getQueueUrls().size() > 0) {
                 List<String> queueUrls = listQueuesResult.getQueueUrls();
@@ -81,25 +90,19 @@ public class Main {
             }
         }
 
-        // JMS
-        SQSConnectionFactory connectionFactory =
-                SQSConnectionFactory.builder()
-                        .withRegion(Region.getRegion(Regions.EU_CENTRAL_1))
-                        .withAWSCredentialsProvider(new DefaultAWSCredentialsProviderChain())
-                        .build();
 
         try {
-            SQSConnection connection = connectionFactory.createConnection();
             AmazonSQSMessagingClientWrapper client = connection.getWrappedAmazonSQSClient();
             if (!client.queueExists("TopicQueue")) {
                 CreateQueueResult createQueueResult = client.createQueue("TopicQueue");
                 LOGGER.info("TopicQueue created");
-                AmazonSQS amznClient = connection.getAmazonSQSClient();
-                amznClient.deleteQueue(new DeleteQueueRequest("TopicQueue"));
-                connection.close();
+                sqs.deleteQueue(new DeleteQueueRequest("TopicQueue"));
             }
         } catch (JMSException e) {
             LOGGER.error(e.getMessage(), e);
+        }
+        finally {
+            connection.close();
         }
     }
 }
