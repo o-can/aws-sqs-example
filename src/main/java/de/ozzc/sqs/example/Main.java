@@ -96,6 +96,7 @@ public class Main {
                 LOGGER.info("TopicQueue created");
                 AmazonSQS amznClient = connection.getAmazonSQSClient();
                 amznClient.deleteQueue(new DeleteQueueRequest("TopicQueue"));
+                connection.close();
             }
         } catch (JMSException e) {
             LOGGER.error(e.getMessage(), e);
