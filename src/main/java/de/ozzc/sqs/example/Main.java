@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- *
  * @author Ozkan Can
  */
 public class Main {
@@ -28,35 +27,34 @@ public class Main {
         String myQueueUrl;
         try {
             myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
-        }
-        catch(QueueDeletedRecentlyException e) {
+        } catch (QueueDeletedRecentlyException e) {
             LOGGER.info("Queue was deleted recently. Waiting for 65s before we continue ...");
             Thread.sleep(TimeUnit.SECONDS.toMillis(65));
             myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
         }
         LOGGER.info(myQueueUrl);
         sqs.sendMessage(new SendMessageRequest(myQueue, "Hello World!"));
-        ReceiveMessageResult receiveMessageResult = sqs.receiveMessage(myQueue);
-        if(receiveMessageResult != null)
-        {
-            List<Message> messages = receiveMessageResult.getMessages();
-            if(messages != null && messages.size() > 0)
-            {
-                for(Message message : messages)
-                {
-                    LOGGER.info(message.getBody());
+        ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest().withQueueUrl(myQueueUrl).withMaxNumberOfMessages(1);
+        boolean messageReceived = false;
+        while (!messageReceived) {
+            ReceiveMessageResult receiveMessageResult = sqs.receiveMessage(receiveMessageRequest);
+            if (receiveMessageResult != null) {
+                List<Message> messages = receiveMessageResult.getMessages();
+                if (messages != null && messages.size() == 1) {
+                    messageReceived = true;
+                    Message message = messages.get(0);
+                    LOGGER.info("Received message : " + message.getBody());
+                    sqs.deleteMessage(new DeleteMessageRequest().withQueueUrl(myQueueUrl).withReceiptHandle(message.getReceiptHandle()));
                 }
             }
         }
         sqs.deleteQueue(myQueue);
         ListQueuesResult listQueuesResult = sqs.listQueues(myQueue);
-        if(listQueuesResult != null)
-        {
-            if(listQueuesResult.getQueueUrls().size() > 0)
-            {
+        if (listQueuesResult != null) {
+            if (listQueuesResult.getQueueUrls().size() > 0) {
                 List<String> queueUrls = listQueuesResult.getQueueUrls();
-                for(String queueUrl : queueUrls)
-                    LOGGER.info("Existing Queue that was not deleted : "+queueUrl);
+                for (String queueUrl : queueUrls)
+                    LOGGER.info("Existing Queue that was not deleted : " + queueUrl);
             }
         }
     }
