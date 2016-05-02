@@ -10,7 +10,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * @author Ozkan Can
@@ -33,7 +36,18 @@ public class Main {
             myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
         }
         LOGGER.info(myQueueUrl);
+
         sqs.sendMessage(new SendMessageRequest(myQueue, "Hello World!"));
+        GetQueueAttributesResult getQueueAttributesResult = sqs.getQueueAttributes(new GetQueueAttributesRequest(myQueueUrl));
+        if(getQueueAttributesResult != null)
+        {
+            Map<String, String> attributes = getQueueAttributesResult.getAttributes();
+            if(attributes != null && !attributes.isEmpty())
+            {
+                Set<String> keys = attributes.keySet();
+                LOGGER.info("Queue Attributes for "+myQueueUrl);
+            }
+        }
         ReceiveMessageRequest receiveMessageRequest = new ReceiveMessageRequest().withQueueUrl(myQueueUrl).withMaxNumberOfMessages(1);
         boolean messageReceived = false;
         while (!messageReceived) {
@@ -43,6 +57,8 @@ public class Main {
                 if (messages != null && messages.size() == 1) {
                     messageReceived = true;
                     Message message = messages.get(0);
+                    LOGGER.info("Changing message visability to 60s.");
+                    sqs.changeMessageVisibility(myQueueUrl, message.getReceiptHandle(), 60);
                     LOGGER.info("Received message : " + message.getBody());
                     sqs.deleteMessage(new DeleteMessageRequest().withQueueUrl(myQueueUrl).withReceiptHandle(message.getReceiptHandle()));
                 }
