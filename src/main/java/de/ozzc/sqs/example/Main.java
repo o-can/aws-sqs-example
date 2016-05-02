@@ -24,19 +24,17 @@ public class Main {
     public static void main(String[] args) throws InterruptedException {
         AmazonSQS sqs = new AmazonSQSClient(new DefaultAWSCredentialsProviderChain());
         sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));
-        ListQueuesResult listQueuesResult = sqs.listQueues(myQueue);
-        if(listQueuesResult != null)
-        {
-            if(listQueuesResult.getQueueUrls().size() > 0)
-            {
-                LOGGER.info("Deleting queue MyQueue");
-                sqs.deleteQueue(myQueue);
-                LOGGER.info("Waiting for 65s before we continue ...");
-                Thread.sleep(TimeUnit.SECONDS.toMillis(65));
-            }
-        }
         CreateQueueRequest createQueueRequest = new CreateQueueRequest(myQueue);
-        String myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
+        String myQueueUrl;
+        try {
+            myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
+        }
+        catch(QueueDeletedRecentlyException e) {
+            LOGGER.info("Queue was deleted recently. Waiting for 65s before we continue ...");
+            Thread.sleep(TimeUnit.SECONDS.toMillis(65));
+            myQueueUrl = sqs.createQueue(createQueueRequest).getQueueUrl();
+        }
+        LOGGER.info(myQueueUrl);
         sqs.sendMessage(new SendMessageRequest(myQueue, "Hello World!"));
         ReceiveMessageResult receiveMessageResult = sqs.receiveMessage(myQueue);
         if(receiveMessageResult != null)
@@ -50,6 +48,16 @@ public class Main {
                 }
             }
         }
-        LOGGER.info(myQueueUrl);
+        sqs.deleteQueue(myQueue);
+        ListQueuesResult listQueuesResult = sqs.listQueues(myQueue);
+        if(listQueuesResult != null)
+        {
+            if(listQueuesResult.getQueueUrls().size() > 0)
+            {
+                List<String> queueUrls = listQueuesResult.getQueueUrls();
+                for(String queueUrl : queueUrls)
+                    LOGGER.info("Existing Queue that was not deleted : "+queueUrl);
+            }
+        }
     }
 }
