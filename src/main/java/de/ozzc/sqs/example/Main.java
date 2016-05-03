@@ -6,10 +6,8 @@ import com.amazon.sqs.javamessaging.SQSConnectionFactory;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSAsync;
 import com.amazonaws.services.sqs.AmazonSQSAsyncClient;
-import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.buffered.AmazonSQSBufferedAsyncClient;
 import com.amazonaws.services.sqs.model.*;
 import org.slf4j.Logger;
@@ -104,8 +102,7 @@ public class Main {
             }
         } catch (JMSException e) {
             LOGGER.error(e.getMessage(), e);
-        }
-        finally {
+        } finally {
             connection.close();
         }
     }
